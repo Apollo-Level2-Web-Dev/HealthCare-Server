@@ -1,4 +1,12 @@
-import { Admin, Doctor, Patient, Prisma, User, UserRole, UserStatus } from '@prisma/client';
+import {
+  Admin,
+  Doctor,
+  Patient,
+  Prisma,
+  User,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 import prisma from '../../../shared/prisma';
 import ApiError from '../../../errors/ApiError';
 import httpStatus from 'http-status';
@@ -13,12 +21,19 @@ import { IUploadFile } from '../../../interfaces/file';
 import { FileUploadHelper } from '../../../helpers/fileUploadHelper';
 import auth from '../../middlewares/auth';
 
+import { MeiliSearch } from 'meilisearch';
+
+const meiliClient = new MeiliSearch({
+  host: 'http://localhost:7700',
+  apiKey: 'aSampleMasterKey',
+});
 
 const createDoctor = async (req: Request) => {
   const file = req.file as IUploadFile;
 
   if (file) {
-    const uploadedProfileImage = await FileUploadHelper.uploadToCloudinary(file);
+    const uploadedProfileImage =
+      await FileUploadHelper.uploadToCloudinary(file);
     req.body.doctor.profilePhoto = uploadedProfileImage?.secure_url;
   }
 
@@ -31,9 +46,14 @@ const createDoctor = async (req: Request) => {
         role: UserRole.DOCTOR,
       },
     });
+
     const newDoctor = await transactionClient.doctor.create({
       data: req.body.doctor,
     });
+
+    const { id, email, name, contactNumber, address } = newDoctor;
+    const index = meiliClient.index('doctors');
+    await index.addDocuments([{ id, email, name, contactNumber, address }]);
 
     return newDoctor;
   });
@@ -45,7 +65,8 @@ const createAdmin = async (req: Request): Promise<Admin> => {
   const file = req.file as IUploadFile;
 
   if (file) {
-    const uploadedProfileImage = await FileUploadHelper.uploadToCloudinary(file);
+    const uploadedProfileImage =
+      await FileUploadHelper.uploadToCloudinary(file);
     req.body.admin.profilePhoto = uploadedProfileImage?.secure_url;
   }
 
@@ -72,7 +93,8 @@ const createPatient = async (req: Request): Promise<Patient> => {
   const file = req.file as IUploadFile;
 
   if (file) {
-    const uploadedProfileImage = await FileUploadHelper.uploadToCloudinary(file);
+    const uploadedProfileImage =
+      await FileUploadHelper.uploadToCloudinary(file);
     req.body.patient.profilePhoto = uploadedProfileImage?.secure_url;
   }
 
@@ -156,8 +178,8 @@ const getAllUser = async (
       options.sortBy && options.sortOrder
         ? { [options.sortBy]: options.sortOrder }
         : {
-          createdAt: 'desc',
-        },
+            createdAt: 'desc',
+          },
     select: {
       id: true,
       email: true,
@@ -165,8 +187,8 @@ const getAllUser = async (
       needPasswordChange: true,
       status: true,
       createdAt: true,
-      updatedAt: true
-    }
+      updatedAt: true,
+    },
   });
   const total = await prisma.user.count({
     where: whereConditions,
@@ -186,58 +208,56 @@ const getMyProfile = async (authUser: any) => {
   const userData = await prisma.user.findUnique({
     where: {
       id: authUser.userId,
-      status: UserStatus.ACTIVE
+      status: UserStatus.ACTIVE,
     },
     select: {
       email: true,
       role: true,
       needPasswordChange: true,
-      status: true
-    }
+      status: true,
+    },
   });
 
   let profileData;
   if (userData?.role === UserRole.ADMIN) {
     profileData = await prisma.admin.findUnique({
       where: {
-        email: userData.email
-      }
-    })
-  }
-  else if (userData?.role === UserRole.DOCTOR) {
+        email: userData.email,
+      },
+    });
+  } else if (userData?.role === UserRole.DOCTOR) {
     profileData = await prisma.doctor.findUnique({
       where: {
-        email: userData.email
-      }
-    })
-  }
-  else if (userData?.role === UserRole.PATIENT) {
+        email: userData.email,
+      },
+    });
+  } else if (userData?.role === UserRole.PATIENT) {
     profileData = await prisma.patient.findUnique({
       where: {
-        email: userData.email
-      }
-    })
+        email: userData.email,
+      },
+    });
   }
   return { ...profileData, ...userData };
 };
 
 const updateMyProfile = async (authUser: any, req: Request) => {
-
   const userData = await prisma.user.findUnique({
     where: {
       id: authUser.userId,
-      status: UserStatus.ACTIVE
-    }
+      status: UserStatus.ACTIVE,
+    },
   });
 
   if (!userData) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "User does not exists!")
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User does not exists!');
   }
 
   const file = req.file as IUploadFile;
 
   if (file) {
-    const uploadedProfileImage = await FileUploadHelper.uploadToCloudinary(file);
+    const uploadedProfileImage =
+      await FileUploadHelper.uploadToCloudinary(file);
     req.body.profilePhoto = uploadedProfileImage?.secure_url;
   }
 
@@ -245,25 +265,23 @@ const updateMyProfile = async (authUser: any, req: Request) => {
   if (userData?.role === UserRole.ADMIN) {
     profileData = await prisma.admin.update({
       where: {
-        email: userData.email
+        email: userData.email,
       },
-      data: req.body
+      data: req.body,
     });
-  }
-  else if (userData?.role === UserRole.DOCTOR) {
+  } else if (userData?.role === UserRole.DOCTOR) {
     profileData = await prisma.doctor.update({
       where: {
-        email: userData.email
+        email: userData.email,
       },
-      data: req.body
-    })
-  }
-  else if (userData?.role === UserRole.PATIENT) {
+      data: req.body,
+    });
+  } else if (userData?.role === UserRole.PATIENT) {
     profileData = await prisma.patient.update({
       where: {
-        email: userData.email
+        email: userData.email,
       },
-      data: req.body
+      data: req.body,
     });
   }
   return { ...profileData, ...userData };
@@ -276,5 +294,5 @@ export const UserServices = {
   changeProfileStatus,
   getAllUser,
   getMyProfile,
-  updateMyProfile
+  updateMyProfile,
 };
