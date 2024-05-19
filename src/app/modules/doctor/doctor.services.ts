@@ -12,6 +12,7 @@ import { doctorSearchableFields } from './doctor.constants';
 import ApiError from '../../../errors/ApiError';
 import httpStatus from 'http-status';
 import { asyncForEach } from '../../../shared/utils';
+import { deleteDoctorFromMeili } from './doctor.utils';
 
 const insertIntoDB = async (data: Doctor): Promise<Doctor> => {
   const result = await prisma.doctor.create({
@@ -294,6 +295,8 @@ const deleteFromDB = async (id: string): Promise<Doctor> => {
         email: deleteDoctor.email,
       },
     });
+
+    await deleteDoctorFromMeili(deleteDoctor.id);
 
     return deleteDoctor;
   });
