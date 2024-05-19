@@ -211,21 +211,21 @@ const updateIntoDB = async (
       },
       data: doctorData,
     });
-    console.log(doctorData);
+
     if (!result) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Unable to update Doctor');
     }
     if (specialties && specialties.length > 0) {
-      const deleteSpecialities = specialties.filter(
-        speciality => speciality.specialtiesId && speciality.isDeleted,
+      const deleteSpecialties = specialties.filter(
+        specialty => specialty.specialtiesId && specialty.isDeleted,
       );
 
-      const newSpecialities = specialties.filter(
-        speciality => speciality.specialtiesId && !speciality.isDeleted,
+      const newSpecialties = specialties.filter(
+        specialty => specialty.specialtiesId && !specialty.isDeleted,
       );
 
       await asyncForEach(
-        deleteSpecialities,
+        deleteSpecialties,
         async (deleteDoctorSpeciality: ISpecialties) => {
           await transactionClient.doctorSpecialties.deleteMany({
             where: {
@@ -242,12 +242,12 @@ const updateIntoDB = async (
         },
       );
       await asyncForEach(
-        newSpecialities,
-        async (insertDoctorSpeciality: ISpecialties) => {
+        newSpecialties,
+        async (insertDoctorSpecialty: ISpecialties) => {
           //@ needed for already added specialties
           const existingSpecialties = await prisma.doctorSpecialties.findFirst({
             where: {
-              specialtiesId: insertDoctorSpeciality.specialtiesId,
+              specialtiesId: insertDoctorSpecialty.specialtiesId,
               doctorId: id,
             },
           });
@@ -256,7 +256,7 @@ const updateIntoDB = async (
             await transactionClient.doctorSpecialties.create({
               data: {
                 doctorId: id,
-                specialtiesId: insertDoctorSpeciality.specialtiesId,
+                specialtiesId: insertDoctorSpecialty.specialtiesId,
               },
             });
           }
