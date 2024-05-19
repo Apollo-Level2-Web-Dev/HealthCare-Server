@@ -12,6 +12,7 @@ import { paymentRoutes } from '../modules/payment/payment.routes';
 import { PrescriptionsRoutes } from '../modules/prescription/prescription.route';
 import { ReviewRoutes } from '../modules/review/review.route';
 import { MetaRoutes } from '../modules/meta/meta.routes';
+import { MeilisearchRoutes } from '../modules/meilisearch/meilisearch.route';
 
 const router = express.Router();
 
@@ -68,6 +69,10 @@ const moduleRoutes = [
   {
     path: '/metadata',
     route: MetaRoutes,
+  },
+  {
+    path: '/search-doctors',
+    route: MeilisearchRoutes,
   },
 ];
 

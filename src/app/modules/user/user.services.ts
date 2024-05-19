@@ -1,12 +1,4 @@
-import {
-  Admin,
-  Doctor,
-  Patient,
-  Prisma,
-  User,
-  UserRole,
-  UserStatus,
-} from '@prisma/client';
+import { Admin, Patient, Prisma, UserRole, UserStatus } from '@prisma/client';
 import prisma from '../../../shared/prisma';
 import ApiError from '../../../errors/ApiError';
 import httpStatus from 'http-status';
@@ -19,14 +11,8 @@ import { userSearchableFields } from './user.constant';
 import { Request } from 'express';
 import { IUploadFile } from '../../../interfaces/file';
 import { FileUploadHelper } from '../../../helpers/fileUploadHelper';
-import auth from '../../middlewares/auth';
-
-import { MeiliSearch } from 'meilisearch';
-
-const meiliClient = new MeiliSearch({
-  host: 'http://localhost:7700',
-  apiKey: 'aSampleMasterKey',
-});
+import meiliClient from '../../../shared/meilisearch';
+const index = meiliClient.index('doctors');
 
 const createDoctor = async (req: Request) => {
   const file = req.file as IUploadFile;
@@ -39,7 +25,7 @@ const createDoctor = async (req: Request) => {
 
   const hashPassword = await hashedPassword(req.body.password);
   const result = await prisma.$transaction(async transactionClient => {
-    const newUser = await transactionClient.user.create({
+    await transactionClient.user.create({
       data: {
         email: req.body.doctor.email,
         password: hashPassword,
@@ -52,7 +38,6 @@ const createDoctor = async (req: Request) => {
     });
 
     const { id, email, name, contactNumber, address } = newDoctor;
-    const index = meiliClient.index('doctors');
     await index.addDocuments([{ id, email, name, contactNumber, address }]);
 
     return newDoctor;
@@ -284,6 +269,12 @@ const updateMyProfile = async (authUser: any, req: Request) => {
       data: req.body,
     });
   }
+
+  if (profileData && 'address' in profileData) {
+    const { id, email, name, contactNumber, address } = profileData;
+    await index.updateDocuments([{ id, email, name, contactNumber, address }]);
+  }
+
   return { ...profileData, ...userData };
 };
 
